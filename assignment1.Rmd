@@ -1,0 +1,204 @@
+---
+title: "Exploratory Analysis: Text Prediction"
+author: "Jason LaJeunesse"
+date: "Sunday, May 01, 2016"
+output: html_document
+---
+
+##Overview
+
+The purpose of this report is to go over the exploratory analysis of the three training data sets for a text prediction algorithm. The three sets are a text file with blog posts, a text file with news stories, and a text file with twitter messages.
+
+##Exploratory Analysis
+
+The first item to look at for the exploratory analysis is the line count for each file.
+
+```{r, message=FALSE,echo=FALSE,warning=FALSE}
+######## Line Counts of Each File
+
+#Libraries
+library(readr)
+library(sqldf)
+library(plyr)
+library(tm)
+library(stringr)
+
+#Set the working directory
+setwd("E:/Coursera/capstone")
+
+#Lines in blogs
+blog_lines = length(readLines("data/final/en_US/en_US.blogs.txt"))
+news_lines = length(readLines("data/final/en_US/en_US.news.txt"))
+twitter_lines = length(readLines("data/final/en_US/en_US.twitter.txt"))
+
+paste('Blog Lines:', blog_lines)
+paste('News Lines: ', news_lines)
+paste('Twitter Lines: ', twitter_lines)
+
+```
+
+The data shows there are more lines in the twitter file than the blog or news files, but this is could be due to the twitter messages taking up less words per line than the other files.
+
+Next, the number of words will be determined as well as distributions of those words for each file.
+
+```{r, message=FALSE,echo=FALSE,warning=FALSE}
+########  Word Count of each file
+
+### For Blogs (One Word)
+inputFile <- "data/final/en_US/en_US.blogs.txt"
+
+#Get the ordered distribution of words
+mystring <- read_file(inputFile)
+list_words <- strsplit(mystring," ")
+#Line added to each file for removing emoji's or other non-utf8 friendly characters
+list_words <- sapply(list_words,function(row) iconv(row, "latin1", "ASCII", sub=""))
+nw_blogs = length(list_words)
+df <- data.frame(list_words)
+colnames(df) <- c("word")
+dist <- count(df,"word")
+dist_ordered <- dist[order(dist[2],decreasing = TRUE),]
+blogs_one <- dist_ordered
+
+### For News (One Word)
+inputFile <- "data/final/en_US/en_US.news.txt"
+
+#Get the ordered distribution of words
+mystring <- read_file(inputFile)
+list_words <- strsplit(mystring," ")
+list_words <- sapply(list_words,function(row) iconv(row, "latin1", "ASCII", sub=""))
+nw_news = length(list_words)
+df <- data.frame(list_words)
+colnames(df) <- c("word")
+dist <- count(df,"word")
+dist_ordered <- dist[order(dist[2],decreasing = TRUE),]
+news_one <- dist_ordered
+
+### For Twitter (One Word)
+inputFile <- "data/final/en_US/en_US.twitter.txt"
+
+#Get the ordered distribution of words
+mystring <- read_file(inputFile)
+#Replace unusable non-utf8 characters
+list_words <- strsplit(mystring," ")
+list_words <- sapply(list_words,function(row) iconv(row, "latin1", "ASCII", sub=""))
+nw_twitter = length(list_words)
+df <- data.frame(list_words)
+colnames(df) <- c("word")
+dist <- count(df,"word")
+dist_ordered <- dist[order(dist[2],decreasing = TRUE),]
+twitter_one <- dist_ordered
+
+paste('Number of Words in Blogs File: ', nw_blogs)
+paste('Number of Words in News File: ', nw_news)
+paste('Number of Words in Twitter File: ', nw_twitter)
+```
+
+Here we can see that there are about the same number of words in the blog and news text files, but there are over 1 million less words in the twitter file compared to the blogs or news files.
+
+```{r, message=FALSE,echo=FALSE,warning=FALSE}
+########  Top 20 One-Word distribution of Each File
+paste("Top 20 Blogs file One-Word Frequencies")
+blogs_one[1:20,]
+paste("Top 20 News file One-Word Frequencies")
+news_one[1:20,]
+paste("Top 20 Twitter file One-Word Frequencies")
+twitter_one[1:20,]
+```
+
+From the distribution tables we can see a lot of similar words for each of the files, but one of the standout missing words in the news table is anything referring to "I". This makes sense given that news articles are typically not written from a first person perspective.
+
+```{r, message=FALSE,echo=FALSE,warning=FALSE}
+########  Plot distribution Frequencies bar graphs
+barplot(blogs_one[1:20,2], names.arg=blogs_one[1:20,1],main = "Blog Word Distribution")
+barplot(news_one[1:20,2], names.arg=news_one[1:20,1],main = "News Word Distribution")
+barplot(twitter_one[1:20,2], names.arg=twitter_one[1:20,1],main = "Twitter Word Distribution")
+
+```
+
+After looking at just individual words, the next step was to look at word pairs.
+
+```{r, message=FALSE,echo=FALSE,warning=FALSE}
+### For Blogs (Two Word)
+inputFile <- "data/final/en_US/en_US.blogs.txt"
+
+#Get the ordered distribution of words
+mystring <- read_file(inputFile)
+list_words <- strsplit(mystring," ")
+list_words <- sapply(list_words,function(row) iconv(row, "latin1", "ASCII", sub=""))
+
+l_one <- list_words[1:length(list_words)-1]
+l_two <- list_words[2:length(list_words)]
+
+df <- data.frame(l_one)
+df_2 <- data.frame(l_two)
+df_fin <- cbind(df,df_2)
+
+colnames(df_fin) <- c("word_one","word_two")
+dist <- count(df_fin, c("word_one","word_two"))
+dist_ordered <- dist[order(dist[3],decreasing = TRUE),]
+
+blogs_two <- dist_ordered
+
+### For News (Two Words)
+inputFile <- "data/final/en_US/en_US.news.txt"
+
+#Get the ordered distribution of words
+mystring <- read_file(inputFile)
+list_words <- strsplit(mystring," ")
+list_words <- sapply(list_words,function(row) iconv(row, "latin1", "ASCII", sub=""))
+
+l_one <- list_words[1:length(list_words)-1]
+l_two <- list_words[2:length(list_words)]
+
+df <- data.frame(l_one)
+df_2 <- data.frame(l_two)
+df_fin <- cbind(df,df_2)
+
+colnames(df_fin) <- c("word_one","word_two")
+dist <- count(df_fin, c("word_one","word_two"))
+dist_ordered <- dist[order(dist[3],decreasing = TRUE),]
+
+news_two <- dist_ordered
+
+### For Twitter (Two Word)
+inputFile <- "data/final/en_US/en_US.twitter.txt"
+
+#Get the ordered distribution of words
+mystring <- read_file(inputFile)
+list_words <- strsplit(mystring," ")
+list_words <- sapply(list_words,function(row) iconv(row, "latin1", "ASCII", sub=""))
+
+l_one <- list_words[1:length(list_words)-1]
+l_two <- list_words[2:length(list_words)]
+
+df <- data.frame(l_one)
+df_2 <- data.frame(l_two)
+df_fin <- cbind(df,df_2)
+
+colnames(df_fin) <- c("word_one","word_two")
+dist <- count(df_fin, c("word_one","word_two"))
+dist_ordered <- dist[order(dist[3],decreasing = TRUE),]
+
+twitter_two <- dist_ordered
+
+########  Top 20 Two-Word distribution of Each File
+paste("Top 20 Blogs file Two-Word Frequencies")
+blogs_two[1:20,]
+paste("Top 20 News file Two-Word Frequencies")
+news_two[1:20,]
+paste("Top 20 Twitter file Two-Word Frequencies")
+twitter_two[1:20,]
+
+```
+
+By looking at pairs, you can get a better feel for phrases that you might see in certain mediums. For instance, "RT :" shows up as a common combination for twitter, which stand for "retweet". Interestingly, blog data shows a much larger usage of two word phrases with the word "I" than the news as well as twitter data.
+
+This could be generalized further to look at three or more word combinations to getter a better feel for full phrasing. The distribution frequency for a given word or set of words could be used to determine the probability of the next word.
+
+## Algorithm Idea
+
+My idea will be to create a predictive text generator based on one, two, or three word combinations to determine the next most likely word in a sequence. This could be used to generate entire sentences or even paragraphs if desired.
+
+The distribution frequency will be converted to a probability given the frequency, which could either be used to give the most likely next word, or use a random number generator to generate a word based on the full probability distribution.Another option would be to use random forests on longer sequences of words to determine the next most likely word choice.
+
+I think a good use case would be for auto-completion of words, and that you could adjust the accuracy of the auto-completion by deciding what kinda of writing activity you are currently engaging in. For the purpose of this project we will be sticking to news, twitter, and blog data - but if you happened to be trying to write a Shakespearean tale, you could train your data on some past Shakespeare plays. You could have an option to choose which training set to base your current auto-completion on. 
